@@ -3,14 +3,19 @@
 
 # Question 1 (Naked Twins)
 Q: How do we use constraint propagation to solve the naked twins problem?  
-A: I think naked twins is a constraint we use to solve the sudoku puzzle. Like eliminate and only choice, this reduces search space.
+A: To solve nake twins i made sure that when a box matches with another box value in the unit AND it is of length 2 then we could eliminate those values from the peers.
+   So the constraint was that no other box in that unit can have either of twin values. We could extend the solution to naked triplets or naked quadruplets.
+   I think naked twins is a constraint we use to solve the sudoku puzzle. Like eliminate and only choice, this reduces search space.
    Reason we use constraint propagation is to reduce the search space which without constraint propogation would be huge for sudoku.
    For e.g. every box will have one of 9 choices and there are 81 boxes so search space would be around 9^81 combinations. 
    Trying every value in every box would be time consuming on a computer. Hence we use constraint propogation techniques with search to solve sudoku puzzle.
 
+
+
 # Question 2 (Diagonal Sudoku)
 Q: How do we use constraint propagation to solve the diagonal sudoku problem?  
-A: We used eliminate, only choice and optionally naked twins(uncomment in reduce_puzzle) to reduce the puzzle's problem space and then brute forced it with a search algorithm.
+A: To solve the diagnol sudoku; i changed the unitlist and peers to add additional boxes to both of them and then used eliminate, only choice and 
+   optionally naked twins(uncomment in reduce_puzzle) to reduce the puzzle's problem space and then brute forced it with a search algorithm.
    On every step we reduce the puzzle using constraint propogation techniques. 
    As mentioned above constraint propogation reduces the problem space but depending on problem it might not solve it completely; Hence we need to search and reduce the space 
    until we reach the solution.
