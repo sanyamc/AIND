@@ -59,7 +59,7 @@ def grid_values(grid):
     assert len(chars) == 81
     return dict(zip(boxes, chars))
     
-def eliminate(values):
+def eliminate(values, peers=peers):
     """
     Go through all the boxes, and whenever there is a box with a value, eliminate this value from the values of all its peers.
     Input: A sudoku in dictionary form.
@@ -72,13 +72,13 @@ def eliminate(values):
             values[peer] = values[peer].replace(digit,'')
     return values
 
-def only_choice(values):
+def only_choice(values,unitlist=unitlist):
     """
     Go through all the units, and whenever there is a unit with a value that only fits in one box, assign the value to this box.
     Input: A sudoku in dictionary form.
     Output: The resulting sudoku in dictionary form.
     """    
-    for unit in diagnol_unit_list:
+    for unit in unitlist:
         for digit in '123456789':
             dplaces = [box for box in unit if digit in values[box]]
             if len(dplaces) == 1:
@@ -121,7 +121,7 @@ def naked_twins(values, unitlist=unitlist, peers=peers, reduce_after_unit=False)
                         else:
                             values[peer]=''.join(values[peer].split(value))
         if reduce_after_unit: # used when using nake twins on diagnol sudoku
-            values=eliminate(values)
+            values=eliminate(values,peers)
        
     return values
 
@@ -137,8 +137,8 @@ def reduce_puzzle(values):
     
     while not stalled:
         solved_values_before = len([box for box in values.keys() if len(values[box]) == 1])
-        values = eliminate(values)
-        values = only_choice(values)
+        values = eliminate(values,peersDiagnol)
+        values = only_choice(values,diagnol_unit_list)
         values = naked_twins(values, diagnol_unit_list, peersDiagnol, True) # our fancy new constraint
 
         solved_values_after = len([box for box in values.keys() if len(values[box]) == 1])
