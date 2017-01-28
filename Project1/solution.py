@@ -99,7 +99,7 @@ def assign_value(values, box, value):
         assignments.append(values.copy())
     return values
 
-def naked_twins(values):
+def naked_twins(values, unitlist=unitlist, peers=peers, reduce_after_unit=False):
     """Eliminate values using the naked twins strategy.
     Args:
         values(dict): a dictionary of the form {'box_name': '123456789', ...}
@@ -113,39 +113,16 @@ def naked_twins(values):
 
         for box in unit:
             naked_cases = [peer for peer in peers[box] if values[box]==values[peer] and len(values[peer])==2] # we colud probably extend it to find naked triplets or quadruplets
-            if len(naked_cases)==len(values[box])==2 and len(naked_cases)>0: 
+            if len(naked_cases)==len(values[box])==2: 
                 for value in values[box]:
                     for peer in peers[box]:
                         if peer in naked_cases:
                             continue
                         else:
                             values[peer]=''.join(values[peer].split(value))
+        if reduce_after_unit: # used when using nake twins on diagnol sudoku
+            values=eliminate(values)
        
-    return values
-
-# created to use this while solving diagnol sudoku; please uncomment call to this function in reduce_puzzle to see it in action
-def naked_twins_diagnol(values):
-
-    """Eliminate values using the naked twins strategy; this function is created so we can using this to solve diagnol sudoku.
-    Args:
-        values(dict): a dictionary of the form {'box_name': '123456789', ...}
-
-    Returns:
-        the values dictionary with the naked twins eliminated from peers.
-    """
-    for unit in diagnol_unit_list:
-         # goes through all the units
-
-        for box in unit:
-            naked_cases = [peer for peer in peers[box] if values[box]==values[peer] and len(values[peer])==2] # we colud probably extend it to find naked triplets or quadruplets
-            if len(naked_cases)==len(values[box])==2 and len(naked_cases)>0: 
-                for value in values[box]:
-                    for peer in peers[box]:
-                        if peer in naked_cases:
-                            continue
-                        else:
-                            values[peer]=''.join(values[peer].split(value))
-        values=eliminate(values) # important step as we don't want to identify an invalid naked twin as a result of last naked twin+eliminate       
     return values
 
 def reduce_puzzle(values):
@@ -162,7 +139,7 @@ def reduce_puzzle(values):
         solved_values_before = len([box for box in values.keys() if len(values[box]) == 1])
         values = eliminate(values)
         values = only_choice(values)
-        #values = naked_twins_diagnol(values) # our fancy new constraint
+        values = naked_twins(values, diagnol_unit_list, peersDiagnol, True) # our fancy new constraint
 
         solved_values_after = len([box for box in values.keys() if len(values[box]) == 1])
         stalled = solved_values_before == solved_values_after

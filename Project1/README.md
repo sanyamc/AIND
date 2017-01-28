@@ -3,7 +3,9 @@
 
 # Question 1 (Naked Twins)
 Q: How do we use constraint propagation to solve the naked twins problem?  
-A: To solve nake twins i made sure that when a box matches with another box value in the unit AND it is of length 2 then we could eliminate those values from the peers.
+A: Naked twins are a condition in sudoku that when two boxes have equal values and they are of length=2 then we can eliminate those two values from anyone in that unit.
+   As no other box can have either of two values. 
+   To solve nake twins i made sure that when a box matches with another box value in the unit AND it is of length 2 then we could eliminate those values from the peers.
    So the constraint was that no other box in that unit can have either of twin values. We could extend the solution to naked triplets or naked quadruplets.
    I think naked twins is a constraint we use to solve the sudoku puzzle. Like eliminate and only choice, this reduces search space.
    Reason we use constraint propagation is to reduce the search space which without constraint propogation would be huge for sudoku.
