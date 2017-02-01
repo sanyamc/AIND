@@ -139,6 +139,7 @@ class CustomPlayer:
         raise NotImplementedError
 
     def evaluate(self,game, location):
+
         result=0
         if location in game.get_legal_moves(game.inactive_player):
             result+=1
@@ -155,19 +156,19 @@ class CustomPlayer:
         #return len(game.get_legal_moves())- len(game.get_legal_moves(game.inactive_player))
 
     def minValue(self,game,depth,maximizing_player=False):
-        print("depth: "+str(depth))
+      
         print("===Min Value=====")
-        if depth==0:
-            val = self.evaluate(game)
-            l = game.get_player_location(game.active_player)           
-            print("evaluation for player at "+str(l)+" is: "+str(val))
-
+        print(game.print_board())
+        if depth==1:
+            val,l = min([(self.score(game.forecast_move(m),game.active_player),m) for m in game.get_legal_moves()])  
+                 
+            print("Min evaluation for player at "+str(l)+" is: "+str(val))
             return val,l
         v=float("Inf")
         legal_moves = game.get_legal_moves()
-        print("===Min Value=====")
+        #print("===Min Value=====")
        # print(game.print_board())
-        print("location: "+str(game.get_player_location(game.active_player))+" legal moves: "+str(legal_moves))
+        #print("location: "+str(game.get_player_location(game.active_player))+" legal moves: "+str(legal_moves))
         location=None
         for i in game.get_legal_moves():
             new_game=game.forecast_move(i)
@@ -175,16 +176,16 @@ class CustomPlayer:
             if v>val:
                 v=val
                 location=i
+        print("from max returning: "+str(v)+" with location: "+str(location))
         return v,location
 
     def maxValue(self,game,depth,maximizing_player=True):
-        #print("depth: "+str(depth))
-        print("===Max Value=====")
-        if depth==0:
-            val = self.evaluate(game)
-            l = game.get_player_location(game.active_player)
-            print("evaluation for player at "+str(l)+" is: "+str(val))
 
+        print("===Max Value=====")
+        if depth==1:
+            val,l = max([(self.score(game.forecast_move(m),game.active_player),m) for m in game.get_legal_moves()])  
+                       
+            print("Max evaluation for player at "+str(l)+" is: "+str(val))
             return val,l
             #return len(game.get_legal_moves())+game.utility(game.active_player),game.get_player_location(game.active_player)
         v=-float("Inf")
@@ -195,20 +196,16 @@ class CustomPlayer:
         print("location: "+str(game.get_player_location(game.active_player))+" legal moves: "+str(legal_moves))
         location=None
         for i in legal_moves:
-            #
-            print(str(i)+" with evaluate score "+str(self.evaluate(game,i)))
+
             new_game=game.forecast_move(i)
-            print(new_game.print_board())
-           # l = new_game.get_legal_moves(new_game.inactive_player)
-            #inactive = new_game.get_legal_moves(new_game.active_player)
-            #moves = [i for i in l if i not in inactive]
-            #print("move count: "+str(new_game.move_count))
-           # print("legal moves for: "+str(new_game.get_player_location(new_game.inactive_player))+ " are: "+str(moves))
-          #  val,l = self.minValue(new_game,depth-1,maximizing_player=False)
-         #   if v<val:
-          #      v=val
-          #      location=i
-          #      print("v: "+str(v)+" location "+str(location))
+            val,l = self.minValue(new_game,depth-1,maximizing_player=False)
+            
+            if v<val:
+                v=val
+                location=i
+            print("i: "+str(i)+" v: "+str(v)+ "val: "+str(val)+" location "+str(location) + " l: "+str(l))
+                
+
         return v,location
 
     def minimax(self, game, depth, maximizing_player=True):
