@@ -274,79 +274,39 @@ class CustomPlayer:
         tuple(int, int)
             The best move for the current branch; (-1, -1) for no legal moves
         """
-        self.max_moves={}
+        if depth==0 or not game.get_legal_moves():
+            return self.score(game,game.active_player),game.get_player_location(game.active_player)
+        best_move=None
+        legal_moves = game.get_legal_moves()
+        store=[]
+        
         if maximizing_player:
-            
-            v,l= self.maxValue(game,depth,True)
-            return v,l
-            
+            best_option=-float("Inf")
 
-            # if depth%2==0:
-            #     return self.max_moves[depth-1]
-            # else:
-            #     return self.max_moves[depth]
-        else:
-            return self.minValue(game,depth,False)
-        '''
-        player = game.active_player
-        if depth%2==0:
-            maximizing_player=True
-            player=game.inactive_player
-        else:
-            maximizing_player=False
-            player=game.active_player
+            for m in legal_moves:
+                new_game = game.forecast_move(m)
+                option,_=self.minimax(new_game,depth-1,False)
+                
+                if best_option < option:
+                    best_option=option
+                    best_move=m
+                if depth==1:
+                    store.append((new_game,m))
+            if depth==1:
+                best_option,best_move = max((self.score(game,game.inactive_player),m) for game,m in store)                
+            return best_option,best_move
         
-
-        if self.time_left() < self.TIMER_THRESHOLD:
-            raise Timeout()
-
-        legal_moves = game.get_legal_moves(player)
-        #player = game.inactive_player
-
-
-
-        #print("legal moves for "+str(game.get_player_location(player))+" are: "+str(legal_moves))# game.print_board())
-        #print("blah-------------")
-        
-        
-        if not legal_moves or len(legal_moves)==0:
-            " no legal moves left; this player lost; return utility"
-            return game.get_player_location(player), game.utility(player)
-        elif depth==0:
-            print("location: "+str(game.get_player_location(player)))
-            val = len(game.get_legal_moves())
-            print("score: "+str(val))
-
-            return (val),game.get_player_location(player)
-            
-        v=None
-        location=None
-        if maximizing_player: 
-            v=-float("Inf")
         else:
-            v=float("Inf")
-        print("depth: "+str(depth))
-        print("legal moves: "+str(legal_moves))
-        print("maximizing: "+str(maximizing_player)+" val: "+str(v))
-        for i in legal_moves:
-            new_game = game.forecast_move(i)
-            
-            print("location: "+str(i)+" legal moves: "+str(new_game.get_legal_moves(new_game.inactive_player)))
-            print(new_game.get_player_location(new_game.inactive_player))
-            
-            
-            print("game: "+str(game.get_player_location(game.active_player)))
-            print("new game: "+str(new_game.get_player_location(new_game.active_player)))
-            val,l = self.minimax(new_game,depth-1,maximizing_player)
-            if (maximizing_player and v<val) or(not maximizing_player and v>val):
-                location=i
-                v=val
-            #print(i)
-        return v,location 
-        '''
-
-
-
+            best_option=float("Inf")
+            for m in legal_moves:
+                new_game = game.forecast_move(m)
+                option,_=self.minimax(new_game,depth-1,True)
+                if best_option > option:
+                    best_option=option
+                    best_move=m
+            return best_option,best_move
+        
+                
 
     def alphabeta(self, game, depth, alpha=float("-inf"), beta=float("inf"), maximizing_player=True):
         """Implement minimax search with alpha-beta pruning as described in the
