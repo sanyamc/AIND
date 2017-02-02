@@ -119,25 +119,38 @@ class CustomPlayer:
 
         self.time_left = time_left
 
-        # TODO: finish this function!
-
         # Perform any required initializations, including selecting an initial
         # move from the game board (i.e., an opening book), or returning
         # immediately if there are no legal moves
+        #print("legal_moves: "+str(legal_moves))
+        if len(legal_moves)==0:
+            return (-1,-1)
+        best_move=(-1,-1)
 
         try:
             # The search method call (alpha beta or minimax) should happen in
             # here in order to avoid timeout. The try/except block will
             # automatically catch the exception raised by the search method
             # when the timer gets close to expiring
-            pass
+            if self.iterative:            
+                i=0
+                while(i!=self.search_depth):                    
+                    if self.method=="minimax":
+                        val,best_move=self.minimax(game,i,True)
+                    i+=1
+            else:
+                
+                if self.method=="minimax":
+                    #print(game.print_board())
+                    val,best_move=self.minimax(game,self.search_depth,True)     
 
         except Timeout:
             # Handle any actions required at timeout, if necessary
+            #return best_move
             pass
 
         # Return the best move from the last completed search iteration
-        raise NotImplementedError
+        return best_move
 
     def evaluate(self,game, location):
 
@@ -156,98 +169,7 @@ class CustomPlayer:
         return improved_score(game,game.active_player)
         #return len(game.get_legal_moves())- len(game.get_legal_moves(game.inactive_player))
 
-    def minValue(self,game,depth,maximizing_player=False):
-      
-        #print("===Min Value=====")
-        #print(game.print_board())
-        if depth==1:
-            val,l = min([(self.score(game.forecast_move(m),game.active_player),m) for m in game.get_legal_moves()])  
-                 
-            #print("returning min for depth"+str(depth)+" location: "+str(l)+" is: "+str(val))
-            return val,l
-        # elif depth==1:
-        #     return self.maxValue(game,depth,maximizing_player)
-        v=float("Inf")
-        legal_moves = game.get_legal_moves()
-        #print("===Min Value=====")
-       # print(game.print_board())
-        #print("location: "+str(game.get_player_location(game.active_player))+" legal moves: "+str(legal_moves))
-        location=None
-        for i in game.get_legal_moves():
-            new_game=game.forecast_move(i)
-            val,l = self.maxValue(new_game,depth-1,maximizing_player=True)
-            if v>val:
-                v=val
-                location=i
-        #print("from max returning: "+str(v)+" with location: "+str(location))
-        return v,location
-
-    def maxValue(self,game,depth,maximizing_player=True):
-
-
-       # print("===Max Value=====")
-        #print(game.print_board())
-       # print("location: "+str(game.get_player_location(game.active_player))+" legal moves: "+str(game.get_legal_moves()))
-        if depth==1:
-            val,l = max([(self.score(game.forecast_move(m),game.active_player),m) for m in game.get_legal_moves()])
-            self.max_moves[depth]=(val,l)
-            # self.last_max=val
-            # self.last_max_location=l
-            #print("returning max for depth: "+str(depth)+ " val "+str(val)+" location: "+str(l))
-            
-            return val,l
-
-            #return len(game.get_legal_moves())+game.utility(game.active_player),game.get_player_location(game.active_player)
-        v=-float("Inf")
-        curr_score=v
-        legal_moves = game.get_legal_moves()
-
-
-
-        location=None
-        store=[]
-
-        for i in legal_moves:
- 
-            new_game=game.forecast_move(i)
-            curr_score = self.score(new_game,game.active_player)
-            if depth not in self.max_moves:
-                self.max_moves[depth]=(curr_score,i)
-                #print("depth: "+str(depth)+ "last max first time: "+str(curr_score)+" location: "+str(i))
-            elif self.max_moves[depth][0]<curr_score:
-                self.max_moves[depth]=(curr_score,i)
-                #print("depth: "+str(depth)+ "last max: "+str(curr_score)+" location: "+str(i))          
-
-            # if self.last_max is None:
-            #     self.last_max=curr_score
-            #     self.last_max_location=i
-            #     print("depth: "+str(depth)+ "last max: "+str(self.last_max)+" location: "+str(self.last_max_location))
-            # elif self.last_max<curr_score:
-            #     self.last_max=curr_score
-            #     self.last_max_location=i
-            #     print("depth: "+str(depth)+ "last max: "+str(self.last_max)+" location: "+str(self.last_max_location))
-            #     print("last max: "+str(self.last_max)+" location: "+str(self.last_max_location))
-            
-            val,l = self.minValue(new_game,depth-1,maximizing_player=False)
-            
-            if v<val:
-                v=val
-                location=i
-            if depth==2:
-                store.append((new_game,i))
-            
-
-
-            #print("i: "+str(i)+" v: "+str(v)+ "val: "+str(val)+" location "+str(location) + " l: "+str(l))
-        
-        #print(str(self.max_moves))
-        if depth==2:
-            #print(list(store))
-            v,l = max([(self.score(new_game,new_game.inactive_player),i) for new_game,i in store])
-            return v,l
-                
-
-        return v,location
+    
 
     def minimax(self, game, depth, maximizing_player=True):
         """Implement the minimax search algorithm as described in the lectures.
@@ -274,7 +196,10 @@ class CustomPlayer:
         tuple(int, int)
             The best move for the current branch; (-1, -1) for no legal moves
         """
-        if depth==0 or not game.get_legal_moves():
+        if self.time_left() < self.TIMER_THRESHOLD:
+            raise Timeout()
+
+        if depth==0 or len(game.get_legal_moves())==0:
             return self.score(game,game.active_player),game.get_player_location(game.active_player)
         best_move=None
         legal_moves = game.get_legal_moves()
@@ -343,7 +268,7 @@ class CustomPlayer:
         if self.time_left() < self.TIMER_THRESHOLD:
             raise Timeout()
 
-        if depth==0 or not game.get_legal_moves():
+        if depth==0 or len(game.get_legal_moves())==0:
             return self.score(game,game.active_player),game.get_player_location(game.active_player)
         best_move=None
         legal_moves = game.get_legal_moves()
