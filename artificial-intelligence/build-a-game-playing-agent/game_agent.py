@@ -16,8 +16,23 @@ class Timeout(Exception):
     """Subclass base exception for code clarity."""
     pass
 
+#TODO: add docstrings
+# about 90% on 3 different tries
+def heuristic_first(game,player):
+    result=0
+    if game.get_player_location(player) in game.get_legal_moves(game.inactive_player):
+        result+=1
+    #new_game=game.forecast_move(location)
+    moves = [i for i in game.get_legal_moves() if i in game.get_legal_moves(game.inactive_player)]
+    #print("moves "+str(moves))
+    result -=len(moves)
+    return float(result)
+
+
 
 def custom_score(game, player):
+
+
     """Calculate the heuristic value of a game state from the point of view
     of the given player.
 
@@ -36,9 +51,11 @@ def custom_score(game, player):
     float
         The heuristic value of the current game state to the specified player.
     """
+    return heuristic_first(game, player)
 
-    # TODO: finish this function!
-    raise NotImplementedError
+    #return null_score(game,player)
+
+    
 
 
 class CustomPlayer:
@@ -137,12 +154,15 @@ class CustomPlayer:
                 while(i!=self.search_depth):                    
                     if self.method=="minimax":
                         val,best_move=self.minimax(game,i,True)
+                    else:
+                        val,best_move=self.alphabeta(game,i)
                     i+=1
             else:
                 
                 if self.method=="minimax":
-                    #print(game.print_board())
-                    val,best_move=self.minimax(game,self.search_depth,True)     
+                    val,best_move=self.minimax(game,self.search_depth,True)
+                else:
+                    val,best_move=self.alphabeta(game,self.search_depth)     
 
         except Timeout:
             # Handle any actions required at timeout, if necessary
