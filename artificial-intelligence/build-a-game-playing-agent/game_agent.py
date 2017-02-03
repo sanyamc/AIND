@@ -98,6 +98,20 @@ class CustomPlayer:
         self.TIMER_THRESHOLD = timeout
         self.max_moves={}
 
+
+    def is_symmetric_move(game, move):
+        inactive=game.get_player_location(game.inactive_player)
+        r,c=inactive[0]-i[0],inactive[1]-i[1]
+        if game.move_is_legal((r,c)):
+            return True
+        return False
+
+
+
+            
+        
+
+
     def get_move(self, game, legal_moves, time_left):
         """Search for the best move from the available legal moves and return a
         result before the time limit expires.
@@ -144,11 +158,60 @@ class CustomPlayer:
             return (-1,-1)
         best_move=(-1,-1)
 
+
+
+
+                
+
+                
+            # pick a move which eliminates other player's options
+            # for move in game.get_legal_moves():
+            #     if move in game.get_legal_moves(game.inactive_player):
+            #         new_game = game.forecast_move(move)
+            #         if new_game.get_legal_moves(game.inactive_player)>= new_game.get_legal_moves():
+            #             return move
+
+            #print("first move was mine")
+
+
+            #print("first: "+str(len(game.get_blank_spaces())))
+
+        # start with center
+       # if    return (game.height//2,game.width//2)
+        
+        
+
+        
+
+
+
         try:
+
             # The search method call (alpha beta or minimax) should happen in
             # here in order to avoid timeout. The try/except block will
             # automatically catch the exception raised by the search method
             # when the timer gets close to expiring
+            if len(game.get_blank_spaces())>=38:
+                val,move=max([(improved_score(game.forecast_move(m),game.active_player),m) for m in game.get_legal_moves()])
+                print(val)
+                #print("returning move")
+                return move
+
+            #     #print("moves left: "+str(len(game.get_blank_spaces())))
+            #     print(game.print_board())
+            #     print("current loc: "+str(game.get_player_location(game.active_player)))
+            #     center=(3,3)                
+            #     if center in game.get_legal_moves():
+            #         print("returning center")                    
+            #         return center
+            #     opening_moves=[(2,2),(2,3),(2,4),(3,2),(3,4),(4,2),(4,3),(4,4)]
+            #     for move in game.get_legal_moves():
+            #         if move in opening_moves and move in game.get_legal_moves(game.inactive_player):
+                        
+                        
+            #             print("returning move: "+str(move))
+            #             return move
+
             if self.iterative:            
                 i=0
                 while(i!=self.search_depth):                    
