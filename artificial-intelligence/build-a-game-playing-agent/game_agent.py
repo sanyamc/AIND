@@ -80,7 +80,7 @@ def custom_score(game, player):
     float
         The heuristic value of the current game state to the specified player.
     """
-    return heuristic_first(game, player)
+    return heuristic_third(game, player)
     
 
 
@@ -180,7 +180,7 @@ class CustomPlayer:
         # immediately if there are no legal moves
         if len(legal_moves)==0:
             return (-1,-1)
-        best_move=(-1,-1)  
+        best_move=legal_moves[0]
 
         try:         
 
@@ -189,11 +189,11 @@ class CustomPlayer:
                 sentinel = float("Inf")
                 if self.search_depth>=0:
                     sentinel=self.search_depth
-                while(i<sentinel):                    
+                while(i<=sentinel):                    
                     if self.method=="minimax":
                         val,best_move=self.minimax(game,i,True)
                     else:
-                        val,best_move=self.alphabeta(game,self.search_depth)
+                        val,best_move=self.alphabeta(game,i)
                     i+=1
             else:                
                 if self.method=="minimax":
@@ -205,9 +205,12 @@ class CustomPlayer:
             # Handle any actions required at timeout, if necessary
             #return best_move
             pass
+        finally:
+            return best_move
+            
 
         # Return the best move from the last completed search iteration
-        return best_move
+        
   
 
     def minimax(self, game, depth, maximizing_player=True):
