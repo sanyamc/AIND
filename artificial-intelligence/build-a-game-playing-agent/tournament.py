@@ -81,7 +81,6 @@ def play_match(player1, player2):
 
         if player1 == winner:
             num_wins[player1] += 1
-            #print("player 1 wins")
 
             if termination == "timeout":
                 num_timeouts[player2] += 1
@@ -91,7 +90,6 @@ def play_match(player1, player2):
         elif player2 == winner:
 
             num_wins[player2] += 1
-            #print("player 2 wins")
 
             if termination == "timeout":
                 num_timeouts[player1] += 1
@@ -172,9 +170,7 @@ def main():
         print("{:^25}".format("Evaluating: " + agentUT.name))
         print("*************************")
 
-        # + mm_agents + ab_agents 
-
-        agents = random_agents +mm_agents + ab_agents+ [agentUT]
+        agents = random_agents + mm_agents + ab_agents + [agentUT]
         win_ratio = play_round(agents, NUM_MATCHES)
 
         print("\n\nResults:")

@@ -80,7 +80,7 @@ def custom_score(game, player):
     float
         The heuristic value of the current game state to the specified player.
     """
-    return heuristic_third(game, player)
+    return heuristic_first(game, player)
     
 
 
@@ -121,19 +121,7 @@ class CustomPlayer:
         self.score = score_fn
         self.method = method
         self.time_left = None
-        self.TIMER_THRESHOLD = timeout
-
-
-    def is_symmetric_move(game, move):
-        inactive=game.get_player_location(game.inactive_player)
-        r,c=inactive[0]-i[0],inactive[1]-i[1]
-        if game.move_is_legal((r,c)):
-            return True
-        return False
-
-
-
-            
+        self.TIMER_THRESHOLD = timeout      
         
 
 
@@ -182,6 +170,15 @@ class CustomPlayer:
             return (-1,-1)
         best_move=legal_moves[0]
 
+        is_max=True
+
+        # if len(game.get_blank_spaces())==47:
+        #     #print("odd")
+        #     #is_max=True
+        # elif len(game.get_blank_spaces())==46:
+        #     #print("even")
+        #     #is_max=False
+
         try:         
 
             if self.iterative:            
@@ -191,25 +188,21 @@ class CustomPlayer:
                     sentinel=self.search_depth
                 while(i<=sentinel):                    
                     if self.method=="minimax":
-                        val,best_move=self.minimax(game,i,True)
+                        val,best_move=self.minimax(game,i,is_max)
                     else:
-                        val,best_move=self.alphabeta(game,i)
+                        val,best_move=self.alphabeta(game,i,float("-inf"),float("inf"),is_max)
                     i+=1
             else:                
                 if self.method=="minimax":
-                    val,best_move=self.minimax(game,self.search_depth,True)
+                    val,best_move=self.minimax(game,self.search_depth,is_max)
                 else:
-                    val,best_move=self.alphabeta(game,self.search_depth)     
+                    val,best_move=self.alphabeta(game,self.search_depth,float("-inf"),float("inf"),is_max)     
 
         except Timeout:
             # Handle any actions required at timeout, if necessary
-            #return best_move
             pass
         finally:
             return best_move
-            
-
-        # Return the best move from the last completed search iteration
         
   
 
@@ -274,6 +267,7 @@ class CustomPlayer:
             return best_option,best_move
         
                 
+    
 
     def alphabeta(self, game, depth, alpha=float("-inf"), beta=float("inf"), maximizing_player=True):
         """Implement minimax search with alpha-beta pruning as described in the
@@ -310,8 +304,8 @@ class CustomPlayer:
         if self.time_left() < self.TIMER_THRESHOLD:
             raise Timeout()
         
-        if depth==0 or len(game.get_legal_moves(game.inactive_player))==0:
-            return self.score(game,game.inactive_player),game.get_player_location(game.inactive_player)
+        if depth==0 or len(game.get_legal_moves(game.active_player))==0:
+            return self.score(game,game.active_player),game.get_player_location(game.active_player)
         best_move=None
         legal_moves = game.get_legal_moves()
 
@@ -319,7 +313,7 @@ class CustomPlayer:
             best_option=-float("Inf")
             for m in legal_moves:
                 new_game = game.forecast_move(m)
-                option,_=self.alphabeta(new_game,depth-1,alpha,beta,False)                
+                option,_=self.alphabeta(new_game,depth-1,alpha,beta,False)     
                 
                 if best_option < option:
                     best_option=option
