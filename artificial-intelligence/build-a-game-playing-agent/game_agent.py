@@ -20,43 +20,33 @@ class Timeout(Exception):
 ### Some ideas for heuristic functions 2 and 3
 ## get some open moves for initial board and then improved for remaining
 
-def heuristic_second(game, player):
-    if type(player)!=CustomPlayer:
-        return float("Inf")
-    else:
-        return heuristic_first(game,player)
-
-    if type(player)==CustomPlayer and len(game.get_blank_spaces())%2==0 and player.even==False:
-        return -float("Inf")
-    elif type(player)==CustomPlayer and len(game.get_legal_moves())%2==1 and player.even==True:
-        return -float("Inf")
-    else:
-        return heuristic_first(game,player)
-
 
 # heuristic which rewards moves which are in legal moves of opponent player; so as to reduce opponent's moves
+# with improvement over improved_score
 def heuristic_first(game,player):
         
-    result=0
-    if game.get_player_location(player) in game.get_legal_moves(game.inactive_player):
-        result+=1
+    result=improved_score(game,player)
+    #result=open_move_score(game,player)
+    #print("improved: "+str(result))
+    val=heuristic_second(game,player)
+    # if val<0:
+    #     print("improved: "+str(result))
+    #     result+=val
+    #     print("after h2: "+str(result))
+
+    #print("result after h2: "+str(result))
+    # moves = [i for i in game.get_legal_moves() if i in game.get_legal_moves(game.inactive_player)]
+    # #print("moves "+str(moves))
+    # result -=len(moves)
     return float(result)
 
-# heuristice which penalizes the moves of opponent player; so as to not take moves which are in opponent's legal move
-# this avoids reducing current player's future moves
 def heuristic_second(game,player):
-    result=0
-    moves = [i for i in game.get_legal_moves() if i in game.get_legal_moves(game.inactive_player)]
-    #print("moves "+str(moves))
-    result -=len(moves)
-    return float(result)
+    # feature: slight improvement on improved_score which returns no_of_player_moves_in_opponent_legal
+    oppn_moves = game.get_legal_moves(game.get_opponent(player))
+    moves = [i for i in game.get_legal_moves(player) if i in oppn_moves ]
+    #print("len moves: "+str(len(moves)))
+    return float(-len(moves))
 
-# combination of above two heuristic
-def heuristic_third(game,player):
-    result=0
-    result+=heuristic_first(game,player)
-    result+=heuristic_second(game,player)
-    return result
 
 
 def custom_score(game, player):
@@ -80,6 +70,12 @@ def custom_score(game, player):
     float
         The heuristic value of the current game state to the specified player.
     """
+    if game.is_loser(player):
+        return float("-inf")
+
+    if game.is_winner(player):
+        return float("inf")
+    #return improved_score(game,player)
     return heuristic_first(game, player)
     
 
@@ -170,33 +166,24 @@ class CustomPlayer:
             return (-1,-1)
         best_move=legal_moves[0]
 
-        is_max=True
-
-        # if len(game.get_blank_spaces())==47:
-        #     #print("odd")
-        #     #is_max=True
-        # elif len(game.get_blank_spaces())==46:
-        #     #print("even")
-        #     #is_max=False
-
         try:         
 
             if self.iterative:            
-                i=1
+                i=0
                 sentinel = float("Inf")
                 if self.search_depth>=0:
                     sentinel=self.search_depth
                 while(i<=sentinel):                    
                     if self.method=="minimax":
-                        val,best_move=self.minimax(game,i,is_max)
+                        val,best_move=self.minimax(game,i,True)
                     else:
-                        val,best_move=self.alphabeta(game,i,float("-inf"),float("inf"),is_max)
+                        val,best_move=self.alphabeta(game,i,float("-inf"),float("inf"),True)
                     i+=1
             else:                
                 if self.method=="minimax":
-                    val,best_move=self.minimax(game,self.search_depth,is_max)
+                    val,best_move=self.minimax(game,self.search_depth,True)
                 else:
-                    val,best_move=self.alphabeta(game,self.search_depth,float("-inf"),float("inf"),is_max)     
+                    val,best_move=self.alphabeta(game,self.search_depth,float("-inf"),float("inf"),True)     
 
         except Timeout:
             # Handle any actions required at timeout, if necessary
@@ -234,11 +221,14 @@ class CustomPlayer:
         if self.time_left() < self.TIMER_THRESHOLD:
             raise Timeout()
 
-        if depth==0 or len(game.get_legal_moves(game.active_player))==0:
+        if depth==0 and maximizing_player==False: # triggered by max move
+            return self.score(game,game.inactive_player),game.get_player_location(game.inactive_player)
+        elif depth==0 and maximizing_player==True: # triggered by min move
             return self.score(game,game.active_player),game.get_player_location(game.active_player)
-        best_move=None
+
+        
         legal_moves = game.get_legal_moves()
-        store=[]
+        best_move=None
         
         if maximizing_player:
             best_option=-float("Inf")
@@ -249,11 +239,7 @@ class CustomPlayer:
                 
                 if best_option < option:
                     best_option=option
-                    best_move=m
-                if depth==1:
-                    store.append((new_game,m))
-            if depth==1: # unit test of minimax expects val at odd depth to be considered best so this is kind of a hack to pass them
-                best_option,best_move = max((self.score(game,game.inactive_player),m) for game,m in store)                
+                    best_move=m            
             return best_option,best_move
         
         else:
@@ -265,6 +251,11 @@ class CustomPlayer:
                     best_option=option
                     best_move=m
             return best_option,best_move
+        
+        if best_move==None and len(legal_moves)>0:
+            # no matter what we select; agent either wins for sure or looses for sure
+            best_move=legal_moves[0]
+        return best_option,best_move
         
                 
     
@@ -304,10 +295,13 @@ class CustomPlayer:
         if self.time_left() < self.TIMER_THRESHOLD:
             raise Timeout()
         
-        if depth==0 or len(game.get_legal_moves(game.active_player))==0:
+        if depth==0 and maximizing_player==False:
+            return self.score(game,game.inactive_player),game.get_player_location(game.inactive_player)
+        elif depth==0 and maximizing_player==True:
             return self.score(game,game.active_player),game.get_player_location(game.active_player)
+        
+        legal_moves = game.get_legal_moves()    
         best_move=None
-        legal_moves = game.get_legal_moves()
 
         if maximizing_player:
             best_option=-float("Inf")
@@ -317,11 +311,13 @@ class CustomPlayer:
                 
                 if best_option < option:
                     best_option=option
-                    best_move=m
-                alpha=max(alpha,best_option)                     
+                    best_move=m                    
+                alpha=max(alpha,best_option)  
+                
                 if beta<=alpha:
                     break
-            return best_option,best_move
+
+
         else:
             best_option=float("Inf")
             for m in legal_moves:
@@ -330,7 +326,12 @@ class CustomPlayer:
                 if best_option > option:
                     best_option=option
                     best_move=m
+             
                 beta=min(beta,best_option)
                 if beta <= alpha:
                     break
-            return best_option,best_move
+        if best_move==None and len(legal_moves)>0:
+            # no matter what we select; agent either wins for sure or looses for sure
+            best_move=legal_moves[0]
+
+        return best_option,best_move
