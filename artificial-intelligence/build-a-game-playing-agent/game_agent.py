@@ -20,6 +20,24 @@ class Timeout(Exception):
 ### Some ideas for heuristic functions 2 and 3
 ## get some open moves for initial board and then improved for remaining
 
+# try to order moves to the front in case they were found in shallow depth; this will enable chances of better pruning
+def get_move_order(game,game_hash,tt):
+    moves = game.get_legal_moves()
+    #print(tt)
+    if game_hash in tt:
+        val = tt[game_hash]
+        if val in moves:
+            moves.pop(moves.index(val))
+            moves.insert(0,val)
+    return moves
+
+
+def hash(game):
+    aloc = str(game.__last_player_move__[game.__active_player__])
+    iloc = str(game.__last_player_move__[game.__inactive_player__])
+    state = str([bool(x) for x in sum(game.__board_state__, [])])
+    return aloc + iloc + state
+
 
 # heuristic which rewards moves which are in legal moves of opponent player; so as to reduce opponent's moves
 # with improvement over improved_score
@@ -118,7 +136,13 @@ class CustomPlayer:
         self.method = method
         self.time_left = None
         self.TIMER_THRESHOLD = timeout      
+        self.tt={}
+
+
+    
         
+    
+     
 
 
     def get_move(self, game, legal_moves, time_left):
@@ -166,6 +190,10 @@ class CustomPlayer:
             return (-1,-1)
         best_move=legal_moves[0]
 
+        
+        self.tt={}
+        game_hash = hash(game)        
+
         try:         
 
             if self.iterative:            
@@ -177,7 +205,8 @@ class CustomPlayer:
                     if self.method=="minimax":
                         val,best_move=self.minimax(game,i,True)
                     else:
-                        val,best_move=self.alphabeta(game,i,float("-inf"),float("inf"),True)
+                        val,best_move=self.alphabeta(game,i,float("-inf"),float("inf"),True,game_hash)
+                        self.tt[game_hash]=best_move
                     i+=1
             else:                
                 if self.method=="minimax":
@@ -189,6 +218,15 @@ class CustomPlayer:
             # Handle any actions required at timeout, if necessary
             pass
         finally:
+            # if game_hash in self.tt and self.iterative==True:
+            #     print("found has in tt with move: "+str(self.tt[game_hash][0]))
+            #     print("current game, current move: "+str(best_move))
+            #     print(game.print_board())
+            #     print("previous move: "+str(self.tt[game_hash][1]))
+            #     print(self.tt[game_hash][1])
+            #print(str(self.tt))
+
+            
             return best_move
         
   
@@ -260,7 +298,7 @@ class CustomPlayer:
                 
     
 
-    def alphabeta(self, game, depth, alpha=float("-inf"), beta=float("inf"), maximizing_player=True):
+    def alphabeta(self, game, depth, alpha=float("-inf"), beta=float("inf"), maximizing_player=True, game_hash=None):
         """Implement minimax search with alpha-beta pruning as described in the
         lectures.
 
@@ -294,20 +332,30 @@ class CustomPlayer:
         """
         if self.time_left() < self.TIMER_THRESHOLD:
             raise Timeout()
+
+        #game_hash=hash(game)
+        
+        # if game_hash in self.tt and depth>0:
+        #     print("found has in tt with move: "+str(self.tt[game_hash][0]))
+        #     print("current game, current move: "+str(best_move))
+        #     print(game.print_board())
+        #     print("previous move: "+str(self.tt[game_hash][1]))
+        #     print(self.tt[game_hash][1])
+
         
         if depth==0 and maximizing_player==False:
             return self.score(game,game.inactive_player),game.get_player_location(game.inactive_player)
         elif depth==0 and maximizing_player==True:
             return self.score(game,game.active_player),game.get_player_location(game.active_player)
         
-        legal_moves = game.get_legal_moves()    
+        legal_moves = get_move_order(game,game_hash,self.tt)    
         best_move=None
 
         if maximizing_player:
             best_option=-float("Inf")
             for m in legal_moves:
                 new_game = game.forecast_move(m)
-                option,_=self.alphabeta(new_game,depth-1,alpha,beta,False)     
+                option,_=self.alphabeta(new_game,depth-1,alpha,beta,False,game_hash)     
                 
                 if best_option < option:
                     best_option=option
@@ -322,7 +370,7 @@ class CustomPlayer:
             best_option=float("Inf")
             for m in legal_moves:
                 new_game = game.forecast_move(m)
-                option,_=self.alphabeta(new_game,depth-1,alpha,beta,True)
+                option,_=self.alphabeta(new_game,depth-1,alpha,beta,True,game_hash)
                 if best_option > option:
                     best_option=option
                     best_move=m
@@ -335,3 +383,6 @@ class CustomPlayer:
             best_move=legal_moves[0]
 
         return best_option,best_move
+
+
+
