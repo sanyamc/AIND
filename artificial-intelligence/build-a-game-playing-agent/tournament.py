@@ -95,6 +95,10 @@ def play_match(player1, player2):
                 num_timeouts[player1] += 1
             else:
                 num_invalid_moves[player1] += 1
+        # if type(winner) == CustomPlayer:
+        #     print("Custom wins")
+        # else:
+        #     print("Custom loses")
 
     if sum(num_timeouts.values()) != 0:
         warnings.warn(TIMEOUT_WARNING)
@@ -169,6 +173,8 @@ def main():
         print("*************************")
         print("{:^25}".format("Evaluating: " + agentUT.name))
         print("*************************")
+
+
 
         agents = random_agents + mm_agents + ab_agents + [agentUT]
         win_ratio = play_round(agents, NUM_MATCHES)

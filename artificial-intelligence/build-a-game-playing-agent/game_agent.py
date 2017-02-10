@@ -47,6 +47,7 @@ def heuristic_penalty(game,player):
     result+=val
     return float(result)
 
+
 def heuristic_final(game, player):
     if len(game.get_blank_spaces())>30:
         return heuristic_priority(game,player)
@@ -97,6 +98,21 @@ def heuristic_priority(game,player):
     return float(val)
 
 
+def heuristic_second(game,player):
+    if len(game.get_blank_spaces())>=46:
+        return float("Inf")
+
+        #return open_move_score(game,player)
+    result=0
+    if game.get_player_location(player) in game.get_legal_moves(game.inactive_player):
+        result+=1
+    #new_game=game.forecast_move(location)
+    moves = [i for i in game.get_legal_moves() if i in game.get_legal_moves(game.inactive_player)]
+    #print("moves "+str(moves))
+    result -=len(moves)
+    return float(result)
+
+
 
 
 def custom_score(game, player):
@@ -120,6 +136,7 @@ def custom_score(game, player):
     float
         The heuristic value of the current game state to the specified player.
     """
+
     if game.is_loser(player):
         return float("-inf")
 
@@ -172,6 +189,7 @@ class CustomPlayer:
      
 
 
+
     def get_move(self, game, legal_moves, time_left):
         """Search for the best move from the available legal moves and return a
         result before the time limit expires.
@@ -219,9 +237,14 @@ class CustomPlayer:
 
         
         self.tt={}
-        game_hash = hash(game)        
+        game_hash = hash(game)             
 
-        try:         
+        
+
+
+
+        try:
+
 
             if self.iterative:            
                 i=0
