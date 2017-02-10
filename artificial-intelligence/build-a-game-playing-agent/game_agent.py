@@ -17,13 +17,10 @@ class Timeout(Exception):
     pass
 
 
-### Some ideas for heuristic functions 2 and 3
-## get some open moves for initial board and then improved for remaining
 
 # try to order moves to the front in case they were found in shallow depth; this will enable chances of better pruning
 def get_move_order(game,game_hash,tt):
     moves = game.get_legal_moves()
-    #print(tt)
     if game_hash in tt:
         val = tt[game_hash]
         if val in moves:
@@ -39,28 +36,27 @@ def hash(game):
     return aloc + iloc + state
 
 
-# heuristic which rewards moves which are in legal moves of opponent player; so as to reduce opponent's moves
+# heuristic which penalizes moves which are in legal moves of opponent player; especially if that move is
+# what opponent most likely to take
 # with improvement over improved_score
-def heuristic_first(game,player):
+def heuristic_penalty(game,player):
         
-    result=improved_score(game,player)
-    #result=open_move_score(game,player)
-    #print("improved: "+str(result))
-    val=heuristic_second(game,player)
-    # if val<0:
-    #     print("improved: "+str(result))
-    #     result+=val
-    #     print("after h2: "+str(result))
-
-    #print("result after h2: "+str(result))
-    # moves = [i for i in game.get_legal_moves() if i in game.get_legal_moves(game.inactive_player)]
-    # #print("moves "+str(moves))
-    # result -=len(moves)
+    #result=improved_score(game,player)
+    result=heuristic_priority(game, player)
+    
+    val=heuristic_penalty_helper(game,player)
     result+=val
     return float(result)
 
-def heuristic_second(game,player):
-    # feature: slight improvement on improved_score which returns no_of_player_moves_in_opponent_legal
+def heuristic_final(game, player):
+    if len(game.get_blank_spaces())>30:
+        return heuristic_priority(game,player)
+    result = improved_score(game, player)
+    result+=heuristic_penalty_helper(game,player)
+    return result   
+
+
+def heuristic_penalty_helper(game,player):
     oppn_moves = game.get_legal_moves(game.get_opponent(player))
     moves = [i for i in game.get_legal_moves(player) if i in oppn_moves ]
     weight=0
@@ -68,23 +64,16 @@ def heuristic_second(game,player):
     sixes=[(1,2),(1,4),(5,2),(5,4),(1,3),(5,3),(2,1),(3,1),(4,1),(2,5),(3,5),(4,5)]
     fours=[(1,1),(1,5),(5,1),(5,5),(0,2),(0,3),(0,4),(2,0),(3,0),(4,0),(2,6),(3,6),(4,6)]
     rims_and_corners=[(0,1),(0,5),(6,1),(6,5),(5,0),(5,6),(1,0),(1,6),(0,0),(0,6),(6,0),(6,6)]
-    eight_moves=[8 for i in moves if i in eights]
-    six_moves = [6 for i in moves if i in sixes]
-    four_moves = [4 for i in moves if i in fours]
+    eight_moves=[4 for i in moves if i in eights]
+    six_moves = [3 for i in moves if i in sixes]
+    four_moves = [2 for i in moves if i in fours]
 
-    #remain = [1 for i in moves if i not in eights and i not in sixes]
+    remain = [1 for i in moves if i in rims_and_corners]
     weight+=sum(eight_moves)
     weight+=sum(six_moves)
     weight+=sum(four_moves)
-    # if weight>0:
-    #     print("eight: "+str(eight_moves)+" six: "+str(six_moves))
-    #     print("weight: "+str(weight))
-        
-
-    #weight+=sum(remain)
+    weight+=sum(remain)
     return -float(weight)
-    #print("len moves: "+str(len(moves)))
-    #return float(-len(moves))
 
 def heuristic_priority(game,player):
     eights=[(3,3),(3,2),(3,4),(2,3),(2,2),(2,4),(4,3),(4,2),(4,4)]
@@ -96,21 +85,13 @@ def heuristic_priority(game,player):
 
     all_moves = eights + sixes + fours + rims_and_corners
     location = game.get_player_location(player)
-    is_min = game.active_player == player
-    #print("location is: "+str(location))
-    if location in eights:
-            val=50
-        #print("in eights")
 
+    if location in eights:
+        val=50
     elif location in sixes:
         val=20
-
-        #print("in sixes")
-
     elif location in fours:
         val=0
-
-        
     else:
         val=-50
     
@@ -145,10 +126,8 @@ def custom_score(game, player):
 
     if game.is_winner(player):
         return float("inf")
-    if len(game.get_blank_spaces())>30:
-        return heuristic_priority(game,player)
-    #return improved_score(game,player)
-    return heuristic_first(game, player)
+    return heuristic_final(game, player)
+
     
 
 
@@ -190,12 +169,7 @@ class CustomPlayer:
         self.method = method
         self.time_left = None
         self.TIMER_THRESHOLD = timeout      
-        self.tt={}
-
-
-    
-        
-    
+        self.tt={} # got the idea from https://en.wikipedia.org/wiki/Transposition_table   
      
 
 
@@ -266,21 +240,12 @@ class CustomPlayer:
                 if self.method=="minimax":
                     val,best_move=self.minimax(game,self.search_depth,True)
                 else:
-                    val,best_move=self.alphabeta(game,self.search_depth,float("-inf"),float("inf"),True)     
+                    val,best_move=self.alphabeta(game,self.search_depth,float("-inf"),float("inf"),True, game_hash)     
 
         except Timeout:
             # Handle any actions required at timeout, if necessary
             pass
-        finally:
-            # if game_hash in self.tt and self.iterative==True:
-            #     print("found has in tt with move: "+str(self.tt[game_hash][0]))
-            #     print("current game, current move: "+str(best_move))
-            #     print(game.print_board())
-            #     print("previous move: "+str(self.tt[game_hash][1]))
-            #     print(self.tt[game_hash][1])
-            #print(str(self.tt))
-
-            
+        finally:           
             return best_move
         
   
@@ -386,17 +351,7 @@ class CustomPlayer:
         """
         if self.time_left() < self.TIMER_THRESHOLD:
             raise Timeout()
-
-        #game_hash=hash(game)
-        
-        # if game_hash in self.tt and depth>0:
-        #     print("found has in tt with move: "+str(self.tt[game_hash][0]))
-        #     print("current game, current move: "+str(best_move))
-        #     print(game.print_board())
-        #     print("previous move: "+str(self.tt[game_hash][1]))
-        #     print(self.tt[game_hash][1])
-
-        
+       
         if depth==0 and maximizing_player==False:
             return self.score(game,game.inactive_player),game.get_player_location(game.inactive_player)
         elif depth==0 and maximizing_player==True:
