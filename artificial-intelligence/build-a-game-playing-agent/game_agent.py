@@ -41,7 +41,6 @@ def hash(game):
 # with improvement over improved_score
 def heuristic_penalty(game,player):
         
-    #result=improved_score(game,player)
     result=heuristic_priority(game, player)
     
     val=heuristic_penalty_helper(game,player)
