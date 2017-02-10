@@ -16,17 +16,87 @@ class Timeout(Exception):
     """Subclass base exception for code clarity."""
     pass
 
-#TODO: add docstrings
-# about 90% on 3 different tries
-def heuristic_first(game,player):
-    result=0
-    if game.get_player_location(player) in game.get_legal_moves(game.inactive_player):
-        result+=1
-    #new_game=game.forecast_move(location)
-    moves = [i for i in game.get_legal_moves() if i in game.get_legal_moves(game.inactive_player)]
-    #print("moves "+str(moves))
-    result -=len(moves)
+
+
+# try to order moves to the front in case they were found in shallow depth; this will enable chances of better pruning
+def get_move_order(game,game_hash,tt):
+    moves = game.get_legal_moves()
+    if game_hash in tt:
+        val = tt[game_hash]
+        if val in moves:
+            moves.pop(moves.index(val))
+            moves.insert(0,val)
+    return moves
+
+
+def hash(game):
+    aloc = str(game.__last_player_move__[game.__active_player__])
+    iloc = str(game.__last_player_move__[game.__inactive_player__])
+    state = str([bool(x) for x in sum(game.__board_state__, [])])
+    return aloc + iloc + state
+
+
+# heuristic which penalizes moves which are in legal moves of opponent player; especially if that move is
+# what opponent most likely to take
+# with improvement over improved_score
+def heuristic_penalty(game,player):
+        
+    result=heuristic_priority(game, player)
+    
+    val=heuristic_penalty_helper(game,player)
+    result+=val
     return float(result)
+
+
+def heuristic_final(game, player):
+    if len(game.get_blank_spaces())>30:
+        return heuristic_priority(game,player)
+    result = improved_score(game, player)
+    result+=heuristic_penalty_helper(game,player)
+    return result   
+
+
+def heuristic_penalty_helper(game,player):
+    oppn_moves = game.get_legal_moves(game.get_opponent(player))
+    moves = [i for i in game.get_legal_moves(player) if i in oppn_moves ]
+    weight=0
+    eights=[(3,3),(3,2),(3,4),(2,3),(2,2),(2,4),(4,3),(4,2),(4,4)]
+    sixes=[(1,2),(1,4),(5,2),(5,4),(1,3),(5,3),(2,1),(3,1),(4,1),(2,5),(3,5),(4,5)]
+    fours=[(1,1),(1,5),(5,1),(5,5),(0,2),(0,3),(0,4),(2,0),(3,0),(4,0),(2,6),(3,6),(4,6)]
+    rims_and_corners=[(0,1),(0,5),(6,1),(6,5),(5,0),(5,6),(1,0),(1,6),(0,0),(0,6),(6,0),(6,6)]
+    eight_moves=[4 for i in moves if i in eights]
+    six_moves = [3 for i in moves if i in sixes]
+    four_moves = [2 for i in moves if i in fours]
+
+    remain = [1 for i in moves if i in rims_and_corners]
+    weight+=sum(eight_moves)
+    weight+=sum(six_moves)
+    weight+=sum(four_moves)
+    weight+=sum(remain)
+    return -float(weight)
+
+def heuristic_priority(game,player):
+    eights=[(3,3),(3,2),(3,4),(2,3),(2,2),(2,4),(4,3),(4,2),(4,4)]
+    sixes=[(1,2),(1,4),(5,2),(5,4),(1,3),(5,3),(2,1),(3,1),(4,1),(2,5),(3,5),(4,5)]
+    fours=[(1,1),(1,5),(5,1),(5,5),(0,2),(0,3),(0,4),(2,0),(3,0),(4,0),(2,6),(3,6),(4,6)]
+    rims_and_corners=[(0,1),(0,5),(6,1),(6,5),(5,0),(5,6),(1,0),(1,6),(0,0),(0,6),(6,0),(6,6)]
+
+    #board={(3,3):50,(3,2):}
+
+    all_moves = eights + sixes + fours + rims_and_corners
+    location = game.get_player_location(player)
+
+    if location in eights:
+        val=50
+    elif location in sixes:
+        val=20
+    elif location in fours:
+        val=0
+    else:
+        val=-50
+    
+    return float(val)
+
 
 def heuristic_second(game,player):
     if len(game.get_blank_spaces())>=46:
@@ -41,6 +111,7 @@ def heuristic_second(game,player):
     #print("moves "+str(moves))
     result -=len(moves)
     return float(result)
+
 
 
 
@@ -65,10 +136,13 @@ def custom_score(game, player):
     float
         The heuristic value of the current game state to the specified player.
     """
-    #return heuristic_first(game, player)
-    return heuristic_second(game,player)
 
-    #return null_score(game,player)
+    if game.is_loser(player):
+        return float("-inf")
+
+    if game.is_winner(player):
+        return float("inf")
+    return heuristic_final(game, player)
 
     
 
@@ -110,19 +184,10 @@ class CustomPlayer:
         self.score = score_fn
         self.method = method
         self.time_left = None
-        self.TIMER_THRESHOLD = timeout
-        self.follow_symmetry=False
+        self.TIMER_THRESHOLD = timeout      
+        self.tt={} # got the idea from https://en.wikipedia.org/wiki/Transposition_table   
+     
 
-
-    def get_symmetric_move(self,game,inactive_location):
-        if game.move_is_legal((inactive_location[0],6-inactive_location[1])):
-            return inactive_location[0],(6-inactive_location[1])
-        elif game.move_is_legal((6-inactive_location[0],inactive_location[1])):
-            return (6-inactive_location[0],inactive_location[1])
-        return (-10,-10)
-
-          
-        
 
 
     def get_move(self, game, legal_moves, time_left):
@@ -166,33 +231,13 @@ class CustomPlayer:
         # Perform any required initializations, including selecting an initial
         # move from the game board (i.e., an opening book), or returning
         # immediately if there are no legal moves
-        #print("legal_moves: "+str(legal_moves))
         if len(legal_moves)==0:
             return (-1,-1)
-        best_move=(-1,-1)
+        best_move=legal_moves[0]
 
-
-
-
-                
-
-                
-            # pick a move which eliminates other player's options
-            # for move in game.get_legal_moves():
-            #     if move in game.get_legal_moves(game.inactive_player):
-            #         new_game = game.forecast_move(move)
-            #         if new_game.get_legal_moves(game.inactive_player)>= new_game.get_legal_moves():
-            #             return move
-
-            #print("first move was mine")
-
-
-            #print("first: "+str(len(game.get_blank_spaces())))
-
-        # start with center
-       # if    return (game.height//2,game.width//2)
         
-        
+        self.tt={}
+        game_hash = hash(game)             
 
         
 
@@ -200,102 +245,32 @@ class CustomPlayer:
 
         try:
 
-            # The search method call (alpha beta or minimax) should happen in
-            # here in order to avoid timeout. The try/except block will
-            # automatically catch the exception raised by the search method
-            # when the timer gets close to expiring
-            # if len(game.get_blank_spaces())==47:
-            #     self.follow_symmetry=False
-            # if len(game.get_blank_spaces())==47:
-            #     self.follow_symmetry=False
-            #     ms = self.get_symmetric_move(game,game.get_player_location(game.inactive_player))
-            #     if ms in game.get_legal_moves():
-            #         new_game=game.forecast_move(ms)
-            #         if game.forecast_move(ms).get_legal_moves()>= game.get_legal_moves(game.inactive_player):
-            #             print("returning symmetrical")
-            #             self.follow_symmetry=True
-            #             print("before")
-            #             print(game.print_board())
-            #             print("after")
-            #             print(new_game.print_board())
-            #             return ms
-
-            
-            # if len(game.get_blank_spaces())%2!=0 and self.follow_symmetry:
-            #     ms=self.get_symmetric_move(game,game.get_player_location(game.inactive_player))
-                
-            #     if ms in game.get_legal_moves():
-            #         new_game=game.forecast_move(ms)
-            #         if game.forecast_move(ms).get_legal_moves()>= game.get_legal_moves(game.inactive_player):
-            #             print("returning symmetrical child")
-            #             self.follow_symmetry=True
-            #             print("before")
-            #             print(game.print_board())
-            #             print("after")
-            #             print(new_game.print_board())
-                        # return ms
-                #         return m               for i in game.get_le
-                # val,move=max([(improved_score(game.forecast_move(m),game.active_player),m) for m in game.get_legal_moves()])
-                # print(val)
-                # #print("returning move")
-                # return move
-
-            #     #print("moves left: "+str(len(game.get_blank_spaces())))
-            #     print(game.print_board())
-            #     print("current loc: "+str(game.get_player_location(game.active_player)))
-            #     center=(3,3)                
-            #     if center in game.get_legal_moves():
-            #         print("returning center")                    
-            #         return center
-            #     opening_moves=[(2,2),(2,3),(2,4),(3,2),(3,4),(4,2),(4,3),(4,4)]
-            #     for move in game.get_legal_moves():
-            #         if move in opening_moves and move in game.get_legal_moves(game.inactive_player):
-                        
-                        
-            #             print("returning move: "+str(move))
-            #             return move
 
             if self.iterative:            
                 i=0
-                while(i!=self.search_depth):                    
+                sentinel = float("Inf")
+                if self.search_depth>=0:
+                    sentinel=self.search_depth
+                while(i<=sentinel):                    
                     if self.method=="minimax":
                         val,best_move=self.minimax(game,i,True)
                     else:
-                        val,best_move=self.alphabeta(game,i)
+                        val,best_move=self.alphabeta(game,i,float("-inf"),float("inf"),True,game_hash)
+                        self.tt[game_hash]=best_move
                     i+=1
-            else:
-                
+            else:                
                 if self.method=="minimax":
                     val,best_move=self.minimax(game,self.search_depth,True)
                 else:
-                    val,best_move=self.alphabeta(game,self.search_depth)     
+                    val,best_move=self.alphabeta(game,self.search_depth,float("-inf"),float("inf"),True, game_hash)     
 
         except Timeout:
             # Handle any actions required at timeout, if necessary
-            #return best_move
             pass
-
-        # Return the best move from the last completed search iteration
-        return best_move
-
-    def evaluate(self,game, location):
-
-        result=0
-        if location in game.get_legal_moves(game.inactive_player):
-            result+=1
-        new_game=game.forecast_move(location)
-        moves = [i for i in new_game.get_legal_moves() if i in new_game.get_legal_moves(new_game.inactive_player)]
-        print("moves "+str(moves))
-        result -=len(moves)
-        return result
-
-        return len([i for i in game.get_legal_moves(game.active_player) if i not in game.get_legal_moves(game.inactive_player)])
-        return null_score(game,game.active_player)
-        return open_move_score(game,game.active_player)
-        return improved_score(game,game.active_player)
-        #return len(game.get_legal_moves())- len(game.get_legal_moves(game.inactive_player))
-
-    
+        finally:           
+            return best_move
+        
+  
 
     def minimax(self, game, depth, maximizing_player=True):
         """Implement the minimax search algorithm as described in the lectures.
@@ -325,11 +300,14 @@ class CustomPlayer:
         if self.time_left() < self.TIMER_THRESHOLD:
             raise Timeout()
 
-        if depth==0 or len(game.get_legal_moves())==0:
+        if depth==0 and maximizing_player==False: # triggered by max move
+            return self.score(game,game.inactive_player),game.get_player_location(game.inactive_player)
+        elif depth==0 and maximizing_player==True: # triggered by min move
             return self.score(game,game.active_player),game.get_player_location(game.active_player)
-        best_move=None
+
+        
         legal_moves = game.get_legal_moves()
-        store=[]
+        best_move=None
         
         if maximizing_player:
             best_option=-float("Inf")
@@ -340,11 +318,7 @@ class CustomPlayer:
                 
                 if best_option < option:
                     best_option=option
-                    best_move=m
-                if depth==1:
-                    store.append((new_game,m))
-            if depth==1:
-                best_option,best_move = max((self.score(game,game.inactive_player),m) for game,m in store)                
+                    best_move=m            
             return best_option,best_move
         
         else:
@@ -357,9 +331,15 @@ class CustomPlayer:
                     best_move=m
             return best_option,best_move
         
+        if best_move==None and len(legal_moves)>0:
+            # no matter what we select; agent either wins for sure or looses for sure
+            best_move=legal_moves[0]
+        return best_option,best_move
+        
                 
+    
 
-    def alphabeta(self, game, depth, alpha=float("-inf"), beta=float("inf"), maximizing_player=True):
+    def alphabeta(self, game, depth, alpha=float("-inf"), beta=float("inf"), maximizing_player=True, game_hash=None):
         """Implement minimax search with alpha-beta pruning as described in the
         lectures.
 
@@ -393,44 +373,47 @@ class CustomPlayer:
         """
         if self.time_left() < self.TIMER_THRESHOLD:
             raise Timeout()
-
-        if depth==0 or len(game.get_legal_moves())==0:
+       
+        if depth==0 and maximizing_player==False:
+            return self.score(game,game.inactive_player),game.get_player_location(game.inactive_player)
+        elif depth==0 and maximizing_player==True:
             return self.score(game,game.active_player),game.get_player_location(game.active_player)
+        
+        legal_moves = get_move_order(game,game_hash,self.tt)    
         best_move=None
-        legal_moves = game.get_legal_moves()
-        store=[]
 
         if maximizing_player:
             best_option=-float("Inf")
             for m in legal_moves:
                 new_game = game.forecast_move(m)
-                option,_=self.alphabeta(new_game,depth-1,alpha,beta,False)                
+                option,_=self.alphabeta(new_game,depth-1,alpha,beta,False,game_hash)     
                 
                 if best_option < option:
                     best_option=option
-                    best_move=m
-                if depth==1:
-                    store.append((new_game,m))
-                alpha=max(alpha,best_option)
-                if depth==1:
-                    best_option,best_move = max((self.score(game,game.inactive_player),m) for game,m in store)  
+                    best_move=m                    
+                alpha=max(alpha,best_option)  
+                
                 if beta<=alpha:
                     break
-            return best_option,best_move
+
+
         else:
             best_option=float("Inf")
             for m in legal_moves:
                 new_game = game.forecast_move(m)
-                option,_=self.alphabeta(new_game,depth-1,alpha,beta,True)
+                option,_=self.alphabeta(new_game,depth-1,alpha,beta,True,game_hash)
                 if best_option > option:
                     best_option=option
                     best_move=m
+             
                 beta=min(beta,best_option)
                 if beta <= alpha:
                     break
-            return best_option,best_move
+        if best_move==None and len(legal_moves)>0:
+            # no matter what we select; agent either wins for sure or looses for sure
+            best_move=legal_moves[0]
 
-
+        return best_option,best_move
 
 
 
