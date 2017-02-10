@@ -56,14 +56,66 @@ def heuristic_first(game,player):
     # moves = [i for i in game.get_legal_moves() if i in game.get_legal_moves(game.inactive_player)]
     # #print("moves "+str(moves))
     # result -=len(moves)
+    result+=val
     return float(result)
 
 def heuristic_second(game,player):
     # feature: slight improvement on improved_score which returns no_of_player_moves_in_opponent_legal
     oppn_moves = game.get_legal_moves(game.get_opponent(player))
     moves = [i for i in game.get_legal_moves(player) if i in oppn_moves ]
+    weight=0
+    eights=[(3,3),(3,2),(3,4),(2,3),(2,2),(2,4),(4,3),(4,2),(4,4)]
+    sixes=[(1,2),(1,4),(5,2),(5,4),(1,3),(5,3),(2,1),(3,1),(4,1),(2,5),(3,5),(4,5)]
+    fours=[(1,1),(1,5),(5,1),(5,5),(0,2),(0,3),(0,4),(2,0),(3,0),(4,0),(2,6),(3,6),(4,6)]
+    rims_and_corners=[(0,1),(0,5),(6,1),(6,5),(5,0),(5,6),(1,0),(1,6),(0,0),(0,6),(6,0),(6,6)]
+    eight_moves=[8 for i in moves if i in eights]
+    six_moves = [6 for i in moves if i in sixes]
+    four_moves = [4 for i in moves if i in fours]
+
+    #remain = [1 for i in moves if i not in eights and i not in sixes]
+    weight+=sum(eight_moves)
+    weight+=sum(six_moves)
+    weight+=sum(four_moves)
+    # if weight>0:
+    #     print("eight: "+str(eight_moves)+" six: "+str(six_moves))
+    #     print("weight: "+str(weight))
+        
+
+    #weight+=sum(remain)
+    return -float(weight)
     #print("len moves: "+str(len(moves)))
-    return float(-len(moves))
+    #return float(-len(moves))
+
+def heuristic_priority(game,player):
+    eights=[(3,3),(3,2),(3,4),(2,3),(2,2),(2,4),(4,3),(4,2),(4,4)]
+    sixes=[(1,2),(1,4),(5,2),(5,4),(1,3),(5,3),(2,1),(3,1),(4,1),(2,5),(3,5),(4,5)]
+    fours=[(1,1),(1,5),(5,1),(5,5),(0,2),(0,3),(0,4),(2,0),(3,0),(4,0),(2,6),(3,6),(4,6)]
+    rims_and_corners=[(0,1),(0,5),(6,1),(6,5),(5,0),(5,6),(1,0),(1,6),(0,0),(0,6),(6,0),(6,6)]
+
+    #board={(3,3):50,(3,2):}
+
+    all_moves = eights + sixes + fours + rims_and_corners
+    location = game.get_player_location(player)
+    is_min = game.active_player == player
+    #print("location is: "+str(location))
+    if location in eights:
+            val=50
+        #print("in eights")
+
+    elif location in sixes:
+        val=20
+
+        #print("in sixes")
+
+    elif location in fours:
+        val=0
+
+        
+    else:
+        val=-50
+    
+    return float(val)
+
 
 
 
@@ -93,6 +145,8 @@ def custom_score(game, player):
 
     if game.is_winner(player):
         return float("inf")
+    if len(game.get_blank_spaces())>30:
+        return heuristic_priority(game,player)
     #return improved_score(game,player)
     return heuristic_first(game, player)
     
