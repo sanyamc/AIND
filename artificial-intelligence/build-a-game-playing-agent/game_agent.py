@@ -36,81 +36,36 @@ def hash(game):
     return aloc + iloc + state
 
 
-# heuristic which penalizes moves which are in legal moves of opponent player; especially if that move is
-# what opponent most likely to take
-# with improvement over improved_score
-def heuristic_penalty(game,player):
-        
-    result=heuristic_priority(game, player)
-    
-    val=heuristic_penalty_helper(game,player)
-    result+=val
-    return float(result)
 
 
-def heuristic_final(game, player):
-    if len(game.get_blank_spaces())>30:
-        return heuristic_priority(game,player)
-    result = improved_score(game, player)
-    result+=heuristic_penalty_helper(game,player)
-    return result   
-
-
-def heuristic_penalty_helper(game,player):
-    oppn_moves = game.get_legal_moves(game.get_opponent(player))
-    moves = [i for i in game.get_legal_moves(player) if i in oppn_moves ]
-    weight=0
-    eights=[(3,3),(3,2),(3,4),(2,3),(2,2),(2,4),(4,3),(4,2),(4,4)]
-    sixes=[(1,2),(1,4),(5,2),(5,4),(1,3),(5,3),(2,1),(3,1),(4,1),(2,5),(3,5),(4,5)]
-    fours=[(1,1),(1,5),(5,1),(5,5),(0,2),(0,3),(0,4),(2,0),(3,0),(4,0),(2,6),(3,6),(4,6)]
-    rims_and_corners=[(0,1),(0,5),(6,1),(6,5),(5,0),(5,6),(1,0),(1,6),(0,0),(0,6),(6,0),(6,6)]
-    eight_moves=[4 for i in moves if i in eights]
-    six_moves = [3 for i in moves if i in sixes]
-    four_moves = [2 for i in moves if i in fours]
-
-    remain = [1 for i in moves if i in rims_and_corners]
-    weight+=sum(eight_moves)
-    weight+=sum(six_moves)
-    weight+=sum(four_moves)
-    weight+=sum(remain)
-    return -float(weight)
-
-def heuristic_priority(game,player):
-    eights=[(3,3),(3,2),(3,4),(2,3),(2,2),(2,4),(4,3),(4,2),(4,4)]
-    sixes=[(1,2),(1,4),(5,2),(5,4),(1,3),(5,3),(2,1),(3,1),(4,1),(2,5),(3,5),(4,5)]
-    fours=[(1,1),(1,5),(5,1),(5,5),(0,2),(0,3),(0,4),(2,0),(3,0),(4,0),(2,6),(3,6),(4,6)]
-    rims_and_corners=[(0,1),(0,5),(6,1),(6,5),(5,0),(5,6),(1,0),(1,6),(0,0),(0,6),(6,0),(6,6)]
-
-    #board={(3,3):50,(3,2):}
-
-    all_moves = eights + sixes + fours + rims_and_corners
-    location = game.get_player_location(player)
-
-    if location in eights:
-        val=50
-    elif location in sixes:
-        val=20
-    elif location in fours:
-        val=0
+def search_one_extra(game, player):
+    legal_moves = game.get_legal_moves(player)
+    move = game.get_player_location(game.get_opponent(player))
+    if game.active_player != player:
+        new_game = game.forecast_move(move)
     else:
-        val=-50
-    
-    return float(val)
+        new_game = game.copy()
 
-
-def heuristic_second(game,player):
-    if len(game.get_blank_spaces())>=46:
-        return float("Inf")
-
-        #return open_move_score(game,player)
     result=0
-    if game.get_player_location(player) in game.get_legal_moves(game.inactive_player):
-        result+=1
-    #new_game=game.forecast_move(location)
-    moves = [i for i in game.get_legal_moves() if i in game.get_legal_moves(game.inactive_player)]
-    #print("moves "+str(moves))
-    result -=len(moves)
+    for i in legal_moves:
+        f = new_game.forecast_move(i)
+        result+=len(f.get_legal_moves(f.inactive_player))
     return float(result)
+
+
+    
+
+
+
+
+
+def improved_improved_score(game, player, times=1):
+    own_moves = game.get_legal_moves(player)
+    oppn_moves = game.get_legal_moves(game.get_opponent(player))
+    #own_moves = [i for i in own_moves if i not in oppn_moves]
+    own = len(own_moves)
+    opp = len(oppn_moves)
+    return float(own)-(2*float(opp))
 
 
 
@@ -142,9 +97,11 @@ def custom_score(game, player):
 
     if game.is_winner(player):
         return float("inf")
-    return heuristic_final(game, player)
 
-    
+
+    #return improved_improved_score(game, player)
+    #return search_one_extra_penalty(game, player)
+    return search_one_extra(game, player)
 
 
 class CustomPlayer:
@@ -234,18 +191,14 @@ class CustomPlayer:
         if len(legal_moves)==0:
             return (-1,-1)
         best_move=legal_moves[0]
+        if len(legal_moves)==1:
+            return best_move
 
         
         self.tt={}
         game_hash = hash(game)             
 
-        
-
-
-
         try:
-
-
             if self.iterative:            
                 i=0
                 sentinel = float("Inf")
@@ -268,7 +221,11 @@ class CustomPlayer:
             # Handle any actions required at timeout, if necessary
             pass
         finally:           
-            return best_move
+            if best_move is not None and game.move_is_legal(best_move):
+                return best_move
+            else:
+                #print("forfeiting")
+                return legal_moves[0]
         
   
 
@@ -409,7 +366,7 @@ class CustomPlayer:
                 beta=min(beta,best_option)
                 if beta <= alpha:
                     break
-        if best_move==None and len(legal_moves)>0:
+        if (best_move==None or best_move==(-1,-1)) and len(legal_moves)>0:
             # no matter what we select; agent either wins for sure or looses for sure
             best_move=legal_moves[0]
 
@@ -417,3 +374,120 @@ class CustomPlayer:
 
 
 
+'''
+Heuristics which don't perform better/equal than improved score
+
+
+def search_one_extra_penalty(game, player):
+    legal_moves = game.get_legal_moves(player)
+    oppn_moves = game.get_legal_moves(game.get_opponent(player))
+    #penalty_board = game.forecast_move()
+    legal_moves = [i for i in legal_moves if (i not in oppn_moves or len(game.forecast_move(i).get_legal_moves(game.inactive_player)) >1)]
+    move = game.get_player_location(game.get_opponent(player))
+    if game.active_player != player:
+        new_game = game.forecast_move(move)
+    else:
+        new_game = game.copy()
+
+    result=0
+    for i in legal_moves:        
+        f = new_game.forecast_move(i)
+        result+=len(f.get_legal_moves(f.inactive_player))
+    return float(result)
+
+# heuristic which penalizes moves which are in legal moves of opponent player; especially if that move is
+# what opponent most likely to take
+# with improvement over improved_score
+def heuristic_penalty(game,player):
+        
+    result=heuristic_priority(game, player)
+    
+    val=heuristic_penalty_helper(game,player)
+    result+=val
+    return float(result)
+
+
+def heuristic_final(game, player):
+    own_moves = game.get_legal_moves(player)
+    oppn_moves = game.get_legal_moves(game.get_opponent(player))
+    own_moves = [i for i in own_moves if i not in oppn_moves]
+
+    center = [(3, 3)]
+    eights=[(3, 3), (3, 2), (3, 4), (2, 3), (2, 2), (2, 4), (4, 3), (4, 2), (4, 4)]
+    sixes=[(1,2),(1,4),(5,2),(5,4),(1,3),(5,3),(2,1),(3,1),(4,1),(2,5),(3,5),(4,5)]
+    fours=[(1,1),(1,5),(5,1),(5,5),(0,2),(0,3),(0,4),(2,0),(3,0),(4,0),(2,6),(3,6),(4,6)]
+    rims_and_corners=[(0,1),(0,5),(6,1),(6,5),(5,0),(5,6),(1,0),(1,6),(0,0),(0,6),(6,0),(6,6)]
+    result=0 #heuristic_priority(game,player) # comment to see if it really shows improvement
+    for i in own_moves:
+        if i in center:
+            result+=8           
+        if i in eights:
+            result+=8
+        elif i in sixes:
+            result+=8
+        elif i in fours:
+            result+=4
+        else:
+            result+=1
+    return float(result) #- (0.5*float(len(oppn_moves)))
+
+    # if len(game.get_blank_spaces())>30:
+    #     return heuristic_priority(game,player)
+    # result = improved_score(game, player)
+    # result+=heuristic_penalty_helper(game,player)
+    # return result   
+
+
+def heuristic_penalty_helper(game,player):
+    oppn_moves = game.get_legal_moves(game.get_opponent(player))
+    moves = [i for i in game.get_legal_moves(player) if i in oppn_moves ]
+    weight=0
+    eights=[(3,3),(3,2),(3,4),(2,3),(2,2),(2,4),(4,3),(4,2),(4,4)]
+    sixes=[(1,2),(1,4),(5,2),(5,4),(1,3),(5,3),(2,1),(3,1),(4,1),(2,5),(3,5),(4,5)]
+    fours=[(1,1),(1,5),(5,1),(5,5),(0,2),(0,3),(0,4),(2,0),(3,0),(4,0),(2,6),(3,6),(4,6)]
+    rims_and_corners=[(0,1),(0,5),(6,1),(6,5),(5,0),(5,6),(1,0),(1,6),(0,0),(0,6),(6,0),(6,6)]
+    eight_moves=[4 for i in moves if i in eights]
+    six_moves = [3 for i in moves if i in sixes]
+    four_moves = [2 for i in moves if i in fours]
+
+    remain = [1 for i in moves if i in rims_and_corners]
+    weight+=sum(eight_moves)
+    weight+=sum(six_moves)
+    weight+=sum(four_moves)
+    weight+=sum(remain)
+    return -float(weight)
+
+def heuristic_priority(game,player):
+    eights=[(3,3),(3,2),(3,4),(2,3),(2,2),(2,4),(4,3),(4,2),(4,4)]
+    sixes=[(1,2),(1,4),(5,2),(5,4),(1,3),(5,3),(2,1),(3,1),(4,1),(2,5),(3,5),(4,5)]
+    fours=[(1,1),(1,5),(5,1),(5,5),(0,2),(0,3),(0,4),(2,0),(3,0),(4,0),(2,6),(3,6),(4,6)]
+    rims_and_corners=[(0,1),(0,5),(6,1),(6,5),(5,0),(5,6),(1,0),(1,6),(0,0),(0,6),(6,0),(6,6)]
+
+    #board={(3,3):50,(3,2):}
+
+    #all_moves = eights + sixes + fours + rims_and_corners
+    location = game.get_player_location(player)
+
+    if location in eights or location in sixes:
+        val=10
+    elif location in fours:
+        val=4
+    else:
+        val=0
+    
+    return float(val)
+
+
+def heuristic_second(game,player):
+    if len(game.get_blank_spaces())>=46:
+        return float("Inf")
+    result=0
+    if game.get_player_location(player) in game.get_legal_moves(game.inactive_player):
+        result+=1
+    #new_game=game.forecast_move(location)
+    moves = [i for i in game.get_legal_moves() if i in game.get_legal_moves(game.inactive_player)]
+    #print("moves "+str(moves))
+    result -=len(moves)
+    return float(result)
+
+'''
