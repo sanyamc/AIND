@@ -304,7 +304,59 @@ class PlanningGraph():
         :return:
             adds A nodes to the current level in self.a_levels[level]
         '''
+        # creates an object of class pgnode_a
+        # for all the literals in the state level create action such that the literal is the precondition
+        curr_level = []
+
+        literals = self.s_levels[level] # invariant: State has to be present before the action could be generated
+        literal_exp = [l.literal for l in literals]
+        print("literal exp: {}".format(literal_exp))
+
+        for action in self.all_actions:
+            satisfies_preconditions = True
+            conds = action.precond_pos + action.precond_neg
+            print("all cond {}".format(conds))
+            for pre in action.precond_pos:
+                print("precondition positive: {}".format(pre))
+
+                
+                if pre not in literal_exp:
+                    
+                    satisfies_preconditions = False
+                    break
+            
+            if satisfies_preconditions:
+                for neg_pre in action.precond_neg:
+                    neg = "~{}".format(neg_pre)
+                    print("precondition negative: {}".format(neg))
+                    if neg not in literal_exp:
+                        satisfies_preconditions = False
+                        break
+            if satisfies_preconditions:
+                act = PgNode_a(action)
+                for l in literals:
+                    if l.literal in action.precond_pos+action.precond_neg:
+                        l.children.add(act)
+                        act.parents.add(l)
+                    
+                print("adding action")
+                act.show()
+                curr_level.append(act)
+
+                
+                #print("action-------------")
+
+                #act.show()
+                #print("state-----------")
+                
+        # print("adding noop action")
+        # for l in literals:
+        #     act = PgNode_a
+        self.a_levels.append(curr_level.copy())
+                
+
         # TODO add action A level to the planning graph as described in the Russell-Norvig text
+
         # 1. determine what actions to add and create those PgNode_a objects
         # 2. connect the nodes to the previous S literal level
         # for example, the A0 level will iterate through all possible actions for the problem and add a PgNode_a to a_levels[0]
@@ -321,6 +373,22 @@ class PlanningGraph():
         :return:
             adds S nodes to the current level in self.s_levels[level]
         '''
+        # get the effect of all actions and create state
+        actions = self.a_levels[level-1]
+        curr_level = set()
+
+        for action in actions:
+            effects = action.effnodes
+            for effect in effects:                
+                s = PgNode_s(effect.symbol, effect.is_pos)
+                s.parents.add(action)
+                action.children.add(s)
+                curr_level.add(s)
+        self.s_levels.append(curr_level)
+
+
+
+
         # TODO add literal S level to the planning graph as described in the Russell-Norvig text
         # 1. determine what literals to add
         # 2. connect the nodes

@@ -127,6 +127,13 @@ class AirCargoProblem(Problem):
         return load_actions() + unload_actions() + fly_actions()
 
     def actions(self, state: str) -> list:  # of Action
+        """ Return the actions that can be executed in the given state.
+
+        :param state: str
+            state represented as T/F string of mapped fluents (state variables)
+            e.g. 'FTTTFF'
+        :return: list of Action objects
+        """
         possible_actions = []
         kb = PropKB()
         kb.tell(decode_state(state, self.state_map).pos_sentence())
@@ -142,17 +149,6 @@ class AirCargoProblem(Problem):
                 possible_actions.append(action)
         return possible_actions
 
-    # def actions(self, state: str) -> list:
-    #     """ Return the actions that can be executed in the given state.
-
-    #     :param state: str
-    #         state represented as T/F string of mapped fluents (state variables)
-    #         e.g. 'FTTTFF'
-    #     :return: list of Action objects
-    #     """
-    #     # TODO implement
-    #     possible_actions = []
-    #     return possible_actions
 
     def result(self, state: str, action: Action):
         """ Return the state that results from executing the given
@@ -163,8 +159,20 @@ class AirCargoProblem(Problem):
         :param action: Action applied
         :return: resulting state after action
         """
-        # TODO implement
         new_state = FluentState([], [])
+        old_state = decode_state(state, self.state_map)
+        for fluent in old_state.pos:
+            if fluent not in action.effect_rem:
+                new_state.pos.append(fluent)
+        for fluent in action.effect_add:
+            if fluent not in new_state.pos:
+                new_state.pos.append(fluent)
+        for fluent in old_state.neg:
+            if fluent not in action.effect_add:
+                new_state.neg.append(fluent)
+        for fluent in action.effect_rem:
+            if fluent not in new_state.neg:
+                new_state.neg.append(fluent)
         return encode_state(new_state, self.state_map)
 
     def goal_test(self, state: str) -> bool:
@@ -204,10 +212,13 @@ class AirCargoProblem(Problem):
         conditions by ignoring the preconditions required for an action to be
         executed.
         '''
-        # TODO implement (see Russell-Norvig Ed-3 10.2.3  or Russell-Norvig Ed-2 11.2)
         count = 0
+        kb = PropKB()
+        kb.tell(decode_state(node.state, self.state_map).pos_sentence())
+        for clause in self.goal:
+            if clause not in kb.clauses:
+                count+=1
         return count
-
 
 def air_cargo_p1() -> AirCargoProblem:
     cargos = ['C1', 'C2']
@@ -283,7 +294,6 @@ def air_cargo_p2() -> AirCargoProblem:
 
 
 def air_cargo_p3() -> AirCargoProblem:
-    # TODO implement Problem 3 definition
     cargos = ['C1', 'C2', 'C3', 'C4']
     planes = ['P1', 'P2']
     airports = ['JFK', 'SFO', 'ATL', 'ORD']
