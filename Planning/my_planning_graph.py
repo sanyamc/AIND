@@ -383,6 +383,19 @@ class PlanningGraph():
             return False
         return True
 
+    def is_mutex_helper(self, node1: set, node2: set):
+        '''
+            This piece of code is abstracted out of most
+            of the mutex below as this was used everywhere
+        '''
+        # maybe there is a smarter/pythonistic way to do this
+        for node_s1 in node1:
+            for node_s2 in node2:
+                if node_s1.symbol == node_s2.symbol and node_s2.is_pos != node_s1.is_pos:
+                    return True
+        return False
+
+
     def inconsistent_effects_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:
         '''
         Test a pair of actions for inconsistent effects, returning True if
@@ -403,11 +416,7 @@ class PlanningGraph():
         if effects_a1.issubset(effects_a2) or effects_a2.issubset(effects_a1):
             return False
         else:
-            for node_a1 in effects_a1:
-                for elem in effects_a2:
-                    if elem.symbol == node_a1.symbol and elem.is_pos != node_a1.is_pos: # maybe there is a smarter/pythonistic way to do this
-                        return True
-        return False
+            return self.is_mutex_helper(effects_a1, effects_a2)
 
     def interference_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:
         '''
@@ -423,8 +432,13 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         '''
-        # TODO test for Interference between nodes
-        return False
+        effects_s1 = node_a1.effnodes
+        precond_s2 = node_a2.prenodes
+        effects_s2 = node_a2.effnodes
+        precond_s1 = node_a1.prenodes
+        if self.is_mutex_helper(effects_s1, precond_s2):
+            return True
+        return self.is_mutex_helper(effects_s2, precond_s1)
 
     def competing_needs_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:
         '''
@@ -436,8 +450,14 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         '''
-
-        # TODO test for Competing Needs between nodes
+        precond_s1 = node_a1.parents
+        precond_s2 = node_a2.parents
+        for s1 in precond_s1:
+            for s2 in precond_s2:
+                if s1.is_mutex(s2):
+                    return True
+                # if s2.is_mutex(s1):
+                #     return True
         return False
 
     def update_s_mutex(self, nodeset: set):
@@ -472,7 +492,8 @@ class PlanningGraph():
         :param node_s2: PgNode_s
         :return: bool
         '''
-        # TODO test for negation between nodes
+        if node_s1.symbol == node_s2.symbol and node_s2.is_pos != node_s1.is_pos:
+            return True
         return False
 
     def inconsistent_support_mutex(self, node_s1: PgNode_s, node_s2: PgNode_s):
