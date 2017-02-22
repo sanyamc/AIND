@@ -309,61 +309,16 @@ class PlanningGraph():
         curr_level = []
 
         literals = self.s_levels[level] # invariant: State has to be present before the action could be generated
-        literal_exp = [l.literal for l in literals]
-        print("literal exp: {}".format(literal_exp))
 
         for action in self.all_actions:
-            satisfies_preconditions = True
-            conds = action.precond_pos + action.precond_neg
-            print("all cond {}".format(conds))
-            for pre in action.precond_pos:
-                print("precondition positive: {}".format(pre))
-
-                
-                if pre not in literal_exp:
-                    
-                    satisfies_preconditions = False
-                    break
-            
-            if satisfies_preconditions:
-                for neg_pre in action.precond_neg:
-                    neg = "~{}".format(neg_pre)
-                    print("precondition negative: {}".format(neg))
-                    if neg not in literal_exp:
-                        satisfies_preconditions = False
-                        break
-            if satisfies_preconditions:
-                act = PgNode_a(action)
-                for l in literals:
-                    if l.literal in action.precond_pos+action.precond_neg:
-                        l.children.add(act)
-                        act.parents.add(l)
-                    
-                print("adding action")
-                act.show()
+            act = PgNode_a(action)
+            if act.prenodes.issubset(literals):
+                for l in act.prenodes:
+                    l.children.add(act)
+                    act.parents.add(l)
                 curr_level.append(act)
-
-                
-                #print("action-------------")
-
-                #act.show()
-                #print("state-----------")
-                
-        # print("adding noop action")
-        # for l in literals:
-        #     act = PgNode_a
         self.a_levels.append(curr_level.copy())
                 
-
-        # TODO add action A level to the planning graph as described in the Russell-Norvig text
-
-        # 1. determine what actions to add and create those PgNode_a objects
-        # 2. connect the nodes to the previous S literal level
-        # for example, the A0 level will iterate through all possible actions for the problem and add a PgNode_a to a_levels[0]
-        #   set iff all prerequisite literals for the action hold in S0.  This can be accomplished by testing
-        #   to see if a proposed PgNode_a has prenodes that are a subset of the previous S level.  Once an
-        #   action node is added, it MUST be connected to the S node instances in the appropriate s_level set.
-
     def add_literal_level(self, level):
         ''' add an S (literal) level to the Planning Graph
 
@@ -385,18 +340,6 @@ class PlanningGraph():
                 action.children.add(s)
                 curr_level.add(s)
         self.s_levels.append(curr_level)
-
-
-
-
-        # TODO add literal S level to the planning graph as described in the Russell-Norvig text
-        # 1. determine what literals to add
-        # 2. connect the nodes
-        # for example, every A node in the previous level has a list of S nodes in effnodes that represent the effect
-        #   produced by the action.  These literals will all be part of the new S level.  Since we are working with sets, they
-        #   may be "added" to the set without fear of duplication.  However, it is important to then correctly create and connect
-        #   all of the new S nodes as children of all the A nodes that could produce them, and likewise add the A nodes to the
-        #   parent sets of the S nodes
 
     def update_a_mutex(self, nodeset):
         ''' Determine and update sibling mutual exclusion for A-level nodes
@@ -454,7 +397,16 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         '''
-        # TODO test for Inconsistent Effects between nodes
+        effects_a1 = node_a1.effnodes
+        effects_a2 = node_a2.effnodes
+
+        if effects_a1.issubset(effects_a2) or effects_a2.issubset(effects_a1):
+            return False
+        else:
+            for node_a1 in effects_a1:
+                for elem in effects_a2:
+                    if elem.symbol == node_a1.symbol and elem.is_pos != node_a1.is_pos: # maybe there is a smarter/pythonistic way to do this
+                        return True
         return False
 
     def interference_mutex(self, node_a1: PgNode_a, node_a2: PgNode_a) -> bool:
