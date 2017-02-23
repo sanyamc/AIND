@@ -307,7 +307,6 @@ class PlanningGraph():
         # creates an object of class pgnode_a
         # for all the literals in the state level create action such that the literal is the precondition
         curr_level = []
-
         literals = self.s_levels[level] # invariant: State has to be present before the action could be generated
 
         for action in self.all_actions:
@@ -335,10 +334,9 @@ class PlanningGraph():
         for action in actions:
             effects = action.effnodes
             for effect in effects:                
-                s = PgNode_s(effect.symbol, effect.is_pos)
-                s.parents.add(action)
-                action.children.add(s)
-                curr_level.add(s)
+                effect.parents.add(action)
+                action.children.add(effect)
+                curr_level.add(effect)
         self.s_levels.append(curr_level)
 
     def update_a_mutex(self, nodeset):
@@ -456,8 +454,6 @@ class PlanningGraph():
             for s2 in precond_s2:
                 if s1.is_mutex(s2):
                     return True
-                # if s2.is_mutex(s1):
-                #     return True
         return False
 
     def update_s_mutex(self, nodeset: set):
@@ -512,8 +508,17 @@ class PlanningGraph():
         :param node_s2: PgNode_s
         :return: bool
         '''
-        # TODO test for Inconsistent Support between nodes
-        return False
+        actions_set1 = list(node_s1.parents)
+        actions_set2 = list(node_s2.parents)
+
+        for i in range(0, len(actions_set1)):
+            if node_s1 in actions_set1[i].children and node_s2 in actions_set1[i].children:
+                return False
+            if node_s1 in actions_set2[i].children and node_s2 in actions_set2[i].children:
+                return False
+            if actions_set1[i].is_mutex(actions_set2[i]) is False:
+                return False
+        return True
 
     def h_levelsum(self) -> int:
         '''The sum of the level costs of the individual goals (admissible if goals independent)
@@ -521,6 +526,11 @@ class PlanningGraph():
         :return: int
         '''
         level_sum = 0
-        # TODO implement
-        # for each goal in the problem, determine the level cost, then add them together
+        goals = self.problem.goal.copy()
+        for goal in goals:
+            for level in range(0, len(self.s_levels)):
+                literals = [l.literal for l in self.s_levels[level]]
+                if goal in literals:
+                    level_sum += level
+                    break
         return level_sum
